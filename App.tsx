@@ -1,20 +1,39 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import {Provider,useDispatch} from 'react-redux';
+import {store} from './src/redux/store';
+import MainNavigator from './src/navigation/MainNavigator';
+import {useEffect} from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import {auth} from './src/firebase/firebaseConfig';
+import {login,logout} from './src/redux/userSlice';
+import {doc,getDoc} from 'firebase/firestore';
+import {db} from './src/firebase/firebaseConfig';
 
-export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
+function AuthListener(){
+  const dispatch=useDispatch();
+  useEffect(()=>{
+    onAuthStateChanged(auth,async(user)=>{
+      if(user){
+        const docRef=doc(db,'users',user.uid);
+        const docSnap=await getDoc(docRef);
+        if(docSnap.exists()){
+          dispatch(login({name:docSnap.data().name,
+            email:user.email!,
+          }));
+        }
+      }
+      else{
+        dispatch(logout());
+      }
+    });
+  },[]);
+  return null;
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default function App(){
+  return (
+    <Provider store={store}>
+      <AuthListener/>
+      <MainNavigator/>
+    </Provider>
+  )
+}
